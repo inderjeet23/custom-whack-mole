@@ -43,29 +43,52 @@ interface ParticleEffect {
 }
 
 const WhackAMoleGame: React.FC = () => {
-  // Generate initial random hole positions within safe boundaries
+  // Generate initial random hole positions with proper collision detection
   const generateHolePositions = () => {
     const positions = [];
-    const safeMargin = 100; // pixels from edge
-    const holeSize = 80; // hole diameter
+    const safeMargin = 120; // Increased margin from edges
+    const holeSize = 100; // Hole diameter + spacing buffer
+    const minDistance = 120; // Minimum distance between hole centers
     
     for (let i = 0; i < 9; i++) {
       let attempts = 0;
       let position;
+      let validPosition = false;
       
       do {
+        const maxWidth = window.innerWidth - 2 * safeMargin - 80;
+        const maxHeight = window.innerHeight - 2 * safeMargin - 80;
+        
         position = {
-          x: safeMargin + Math.random() * (window.innerWidth - 2 * safeMargin - holeSize),
-          y: safeMargin + Math.random() * (window.innerHeight - 2 * safeMargin - holeSize)
+          x: safeMargin + Math.random() * maxWidth,
+          y: safeMargin + Math.random() * maxHeight
         };
+        
+        // Check distance from all existing positions
+        validPosition = positions.every(existingPos => {
+          const distance = Math.sqrt(
+            Math.pow(position.x - existingPos.x, 2) + 
+            Math.pow(position.y - existingPos.y, 2)
+          );
+          return distance >= minDistance;
+        });
+        
         attempts++;
-      } while (
-        attempts < 50 &&
-        positions.some(pos => 
-          Math.abs(pos.x - position.x) < holeSize + 20 || 
-          Math.abs(pos.y - position.y) < holeSize + 20
-        )
-      );
+      } while (!validPosition && attempts < 100);
+      
+      // If we can't find a valid position after 100 attempts, use a grid fallback
+      if (!validPosition) {
+        const gridCols = 3;
+        const gridRows = 3;
+        const gridIndex = i;
+        const col = gridIndex % gridCols;
+        const row = Math.floor(gridIndex / gridCols);
+        
+        position = {
+          x: safeMargin + (col * (window.innerWidth - 2 * safeMargin) / gridCols) + 40,
+          y: safeMargin + (row * (window.innerHeight - 2 * safeMargin) / gridRows) + 40
+        };
+      }
       
       positions.push(position);
     }
@@ -188,11 +211,12 @@ const WhackAMoleGame: React.FC = () => {
     toast.success('Using default mole image');
   };
 
-  // Move holes to new positions
+  // Move holes to new positions with better collision detection
   const moveHoles = useCallback(() => {
     setGameState(prev => {
       if (!prev.isPlaying) return prev;
       
+      // Only generate new positions when game is active
       const newPositions = generateHolePositions();
       return {
         ...prev,
@@ -560,74 +584,81 @@ const WhackAMoleGame: React.FC = () => {
         </div>
       )}
 
-      {/* Game Board - Full Screen with Moving Holes */}
-      <div className="fixed inset-0 pointer-events-none">
-        {gameState.moles.map((hasMole, index) => {
-          // Calculate safe boundaries to avoid scoreboard
-          const safeTop = gameState.isPlaying ? 120 : 0; // Leave space for fixed scoreboard
-          const safeBottom = 60; // Leave space for bottom
-          const safeLeft = 20;
-          const safeRight = 20;
-          
-          const position = gameState.holePositions[index];
-          const adjustedY = gameState.isPlaying && position 
-            ? Math.max(safeTop, Math.min(position.y, window.innerHeight - safeBottom - 80))
-            : position?.y || 0;
-          
-          return (
-            <div 
-              key={index} 
-              className="absolute transition-all duration-1000 ease-in-out pointer-events-auto"
-              style={{
-                left: `${position?.x || 0}px`,
-                top: `${adjustedY}px`,
-                transform: gameState.difficultyPhase > 0 ? 'translate(0, 0)' : 'translate(0, 0)'
-              }}
-            >
-              {/* Enhanced Hole with realistic depth */}
-              <div className="w-20 h-20 rounded-full bg-gradient-hole shadow-hole border-4 border-secondary/20 relative overflow-hidden cursor-pointer transition-all duration-200 hover:shadow-hole animate-hole-depth">
+      {/* Game Board - Only show holes during gameplay */}
+      {gameState.isPlaying && (
+        <div className="fixed inset-0 pointer-events-none z-10">
+          {gameState.moles.map((hasMole, index) => {
+            // Calculate safe boundaries to avoid scoreboard
+            const safeTop = 140; // Leave space for fixed scoreboard during gameplay
+            const safeBottom = 80; // Leave space for bottom
+            const safeLeft = 20;
+            const safeRight = 20;
+            
+            const position = gameState.holePositions[index];
+            
+            // Ensure holes don't cover the scoreboard area
+            const adjustedY = position 
+              ? Math.max(safeTop, Math.min(position.y, window.innerHeight - safeBottom - 80))
+              : safeTop;
+            
+            const adjustedX = position
+              ? Math.max(safeLeft, Math.min(position.x, window.innerWidth - safeRight - 80))
+              : safeLeft;
+            
+            return (
+              <div 
+                key={index} 
+                className="absolute transition-all duration-1000 ease-in-out pointer-events-auto"
+                style={{
+                  left: `${adjustedX}px`,
+                  top: `${adjustedY}px`,
+                }}
+              >
+                {/* Enhanced Hole with realistic depth */}
+                <div className="w-20 h-20 rounded-full bg-gradient-hole shadow-hole border-4 border-secondary/20 relative overflow-hidden cursor-pointer transition-all duration-200 hover:shadow-hole animate-hole-depth">
+                  
+                  {/* Mole with anticipation animation */}
+                  {hasMole && (
+                    <div 
+                      className="absolute inset-0 flex items-center justify-center animate-mole-pop cursor-pointer"
+                      onClick={() => hitMole(index)}
+                    >
+                      <img 
+                        src={customImage || moleImage}
+                        alt="Mole"
+                        className="w-16 h-16 object-cover rounded-full shadow-mole hover:animate-wiggle transition-all duration-200"
+                      />
+                    </div>
+                  )}
+
+                  {/* Enhanced Hit Effect with glow */}
+                  {hitEffects.some(effect => effect.position === index) && (
+                    <div className="absolute inset-0 pointer-events-none">
+                      <div className="w-full h-full rounded-full bg-accent/80 animate-hit-effect shadow-hit-effect" />
+                    </div>
+                  )}
+
+                  {/* Particle Effects */}
+                  {particles.filter(p => p.position === index).map(particle => (
+                    <div key={particle.id} className="absolute inset-0 pointer-events-none">
+                      {particle.type === 'star' ? (
+                        <div className="absolute top-2 left-2 text-accent animate-sparkle text-xl">⭐</div>
+                      ) : (
+                        <div className="absolute top-1 right-2 w-2 h-2 bg-accent rounded-full animate-particle-burst shadow-particle" />
+                      )}
+                    </div>
+                  ))}
+                </div>
                 
-                {/* Mole with anticipation animation */}
-                {hasMole && (
-                  <div 
-                    className="absolute inset-0 flex items-center justify-center animate-mole-pop cursor-pointer"
-                    onClick={() => hitMole(index)}
-                  >
-                    <img 
-                      src={customImage || moleImage}
-                      alt="Mole"
-                      className="w-16 h-16 object-cover rounded-full shadow-mole hover:animate-wiggle transition-all duration-200"
-                    />
-                  </div>
+                {/* Movement Trail Effect */}
+                {gameState.difficultyPhase > 0 && (
+                  <div className="absolute inset-0 rounded-full bg-primary/20 animate-pulse -z-10 shadow-lg" />
                 )}
-
-                {/* Enhanced Hit Effect with glow */}
-                {hitEffects.some(effect => effect.position === index) && (
-                  <div className="absolute inset-0 pointer-events-none">
-                    <div className="w-full h-full rounded-full bg-accent/80 animate-hit-effect shadow-hit-effect" />
-                  </div>
-                )}
-
-                {/* Particle Effects */}
-                {particles.filter(p => p.position === index).map(particle => (
-                  <div key={particle.id} className="absolute inset-0 pointer-events-none">
-                    {particle.type === 'star' ? (
-                      <div className="absolute top-2 left-2 text-accent animate-sparkle text-xl">⭐</div>
-                    ) : (
-                      <div className="absolute top-1 right-2 w-2 h-2 bg-accent rounded-full animate-particle-burst shadow-particle" />
-                    )}
-                  </div>
-                ))}
               </div>
-              
-              {/* Movement Trail Effect */}
-              {gameState.difficultyPhase > 0 && (
-                <div className="absolute inset-0 rounded-full bg-primary/20 animate-pulse -z-10 shadow-lg" />
-              )}
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Game Over Message */}
       {gameState.gameOver && (
