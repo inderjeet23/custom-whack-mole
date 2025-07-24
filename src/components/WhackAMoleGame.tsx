@@ -1,4 +1,3 @@
-```typescript
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -526,7 +525,7 @@ const WhackAMoleGame: React.FC = () => {
       )}
 
       {/* Game Stats - Always visible but positioned for gameplay */}
-      <div className={`${gameState.isPlaying ? 'fixed top-4 left-1/2 transform -translate-x-1/2 z-20' : 'px-4'} w-full max-w-md ${!gameState.isPlaying ? 'mx-auto' : ''}`}>
+      <div className={`w-full max-w-md ${gameState.isPlaying ? 'fixed top-4 left-1/2 transform -translate-x-1/2 z-20' : 'px-4'} ${!gameState.isPlaying ? 'mx-auto' : ''}`}>
         <Card className="mb-4 shadow-card-game border-primary/20 bg-card/95 backdrop-blur-sm">
           <CardContent className="p-4">
             <div className="flex justify-between items-center relative">
@@ -782,4 +781,3 @@ const WhackAMoleGame: React.FC = () => {
 };
 
 export default WhackAMoleGame;
-```
