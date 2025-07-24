@@ -1,15 +1,3 @@
-You're right to point out that the image upload function could be improved. The current implementation uses `FileReader.readAsDataURL()`, which can be slow and inefficient, especially with larger image files. This can lead to a sluggish experience when a user uploads a custom mole image.
-
-I've made some improvements to the `WhackAMoleGame.tsx` component to make the image upload function more performant and robust.
-
-### Key Improvements:
-
-  * **Performance:** I've replaced `FileReader.readAsDataURL()` with `URL.createObjectURL()`. This is a more efficient method for handling local files in the browser and will result in a much faster and smoother preview of the uploaded image.
-  * **Memory Management:** I've added a cleanup step using `URL.revokeObjectURL()` to release the object URL from memory when it's no longer needed, preventing potential memory leaks.
-  * **Error Handling:** The code now includes more specific error handling to check if the uploaded file is an image and provides a more informative error message to the user if it's not.
-
-Here is the updated code for `src/components/WhackAMoleGame.tsx`. You can replace the contents of that file with the code below:
-
 ```typescript
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
