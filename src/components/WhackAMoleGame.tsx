@@ -462,7 +462,7 @@ const WhackAMoleGame: React.FC = () => {
             {/* Header */}
             <Card className="mb-4 shadow-card-game animate-bounce-in border-primary/20">
               <CardContent className="p-4 text-center">
-                <h1 className="text-3xl font-bold text-primary mb-2">ЁЯФи Whack-A-Mole!</h1>
+                <h1 className="text-3xl font-bold text-primary mb-2">Welcome To Whack-A-Mole!</h1>
                 <p className="text-muted-foreground">Hit the moles before they disappear!</p>
               </CardContent>
             </Card>
@@ -701,7 +701,7 @@ const WhackAMoleGame: React.FC = () => {
       <Dialog open={showNamePrompt} onOpenChange={setShowNamePrompt}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>ЁЯОЙ High Score!</DialogTitle>
+            <DialogTitle>High Score!</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-center">
