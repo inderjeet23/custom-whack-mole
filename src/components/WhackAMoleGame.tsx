@@ -44,39 +44,43 @@ interface ParticleEffect {
 
 const WhackAMoleGame: React.FC = () => {
   // Generate initial random hole positions with proper collision detection
-  const generateHolePositions = () => {
+const generateHolePositions = () => {
     const positions = [];
-    const safeMargin = 120; // Increased margin from edges
-    const holeSize = 100; // Hole diameter + spacing buffer
-    const minDistance = 120; // Minimum distance between hole centers
-    
+    const isMobile = window.innerWidth < 768;
+
+    // Use smaller margins and distances for mobile screens
+    const safeMargin = isMobile ? 20 : 120;
+    const holeSize = 80; // The hole is w-20 which is 5rem or 80px
+    const minDistance = isMobile ? holeSize + 10 : 120;
+
     for (let i = 0; i < 9; i++) {
       let attempts = 0;
       let position;
       let validPosition = false;
-      
+
       do {
-        const maxWidth = window.innerWidth - 2 * safeMargin - 80;
-        const maxHeight = window.innerHeight - 2 * safeMargin - 80;
-        
+        // Adjust available width/height for margins and the size of the hole itself
+        const maxWidth = window.innerWidth - 2 * safeMargin - holeSize;
+        const maxHeight = window.innerHeight - 2 * safeMargin - holeSize;
+
         position = {
-          x: safeMargin + Math.random() * maxWidth,
-          y: safeMargin + Math.random() * maxHeight
+          x: safeMargin + Math.random() * Math.max(0, maxWidth),
+          y: safeMargin + Math.random() * Math.max(0, maxHeight)
         };
-        
+
         // Check distance from all existing positions
         validPosition = positions.every(existingPos => {
           const distance = Math.sqrt(
-            Math.pow(position.x - existingPos.x, 2) + 
+            Math.pow(position.x - existingPos.x, 2) +
             Math.pow(position.y - existingPos.y, 2)
           );
           return distance >= minDistance;
         });
-        
+
         attempts++;
       } while (!validPosition && attempts < 100);
-      
-      // If we can't find a valid position after 100 attempts, use a grid fallback
+
+      // If we can't find a valid position, use a grid fallback with responsive margins
       if (!validPosition) {
         const gridCols = 3;
         const gridRows = 3;
@@ -84,9 +88,12 @@ const WhackAMoleGame: React.FC = () => {
         const col = gridIndex % gridCols;
         const row = Math.floor(gridIndex / gridCols);
         
+        const gridWidth = window.innerWidth - 2 * safeMargin;
+        const gridHeight = window.innerHeight - 2 * safeMargin;
+
         position = {
-          x: safeMargin + (col * (window.innerWidth - 2 * safeMargin) / gridCols) + 40,
-          y: safeMargin + (row * (window.innerHeight - 2 * safeMargin) / gridRows) + 40
+          x: safeMargin + (col * gridWidth / gridCols) + (gridWidth / gridCols - holeSize) / 2,
+          y: safeMargin + (row * gridHeight / gridRows) + (gridHeight / gridRows - holeSize) / 2
         };
       }
       
@@ -94,7 +101,6 @@ const WhackAMoleGame: React.FC = () => {
     }
     return positions;
   };
-
   const [gameState, setGameState] = useState<GameState>({
     score: 0,
     timeLeft: 60,
