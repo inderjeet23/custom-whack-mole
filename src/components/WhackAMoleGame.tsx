@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Upload, Trophy, RotateCcw } from 'lucide-react';
 import moleImage from '@/assets/mole.png';
+import { supabase } from '@/integrations/supabase/client';
 
 interface GameState {
   score: number;
@@ -19,9 +20,10 @@ interface GameState {
 }
 
 interface ScoreEntry {
-  name: string;
+  id: string;
+  player_name: string;
   score: number;
-  date: string;
+  created_at: string;
 }
 
 interface HitEffect {
@@ -80,6 +82,8 @@ const WhackAMoleGame: React.FC = () => {
   const [showNamePrompt, setShowNamePrompt] = useState(false);
   const [playerName, setPlayerName] = useState('');
   const [hitEffects, setHitEffects] = useState<HitEffect[]>([]);
+  const [leaderboard, setLeaderboard] = useState<ScoreEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [scoreAnimations, setScoreAnimations] = useState<ScoreAnimation[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -89,35 +93,62 @@ const WhackAMoleGame: React.FC = () => {
   const difficultyTimerRef = useRef<NodeJS.Timeout>();
   const effectIdRef = useRef(0);
 
-  // Load leaderboard from localStorage
-  const getLeaderboard = (): ScoreEntry[] => {
-    const stored = localStorage.getItem('whack-a-mole-leaderboard');
-    return stored ? JSON.parse(stored) : [];
+  // Load leaderboard from Supabase
+  const loadLeaderboard = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('leaderboard')
+        .select('*')
+        .order('score', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) {
+        console.error('Error loading leaderboard:', error);
+        toast.error('Failed to load leaderboard');
+        return;
+      }
+
+      setLeaderboard(data || []);
+    } catch (error) {
+      console.error('Error loading leaderboard:', error);
+      toast.error('Failed to load leaderboard');
+    }
   };
 
-  // Save leaderboard to localStorage
-  const saveLeaderboard = (leaderboard: ScoreEntry[]) => {
-    localStorage.setItem('whack-a-mole-leaderboard', JSON.stringify(leaderboard));
+  // Add score to Supabase leaderboard
+  const addToLeaderboard = async (name: string, score: number) => {
+    try {
+      setIsLoading(true);
+      const { error } = await supabase
+        .from('leaderboard')
+        .insert({
+          player_name: name,
+          score: score,
+          game_duration: 60
+        });
+
+      if (error) {
+        console.error('Error adding to leaderboard:', error);
+        toast.error('Failed to save score');
+        return;
+      }
+
+      toast.success('Score saved to leaderboard!');
+      // Reload leaderboard to show updated scores
+      await loadLeaderboard();
+    } catch (error) {
+      console.error('Error adding to leaderboard:', error);
+      toast.error('Failed to save score');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const addToLeaderboard = (name: string, score: number) => {
-    const leaderboard = getLeaderboard();
-    const newEntry: ScoreEntry = {
-      name,
-      score,
-      date: new Date().toLocaleDateString()
-    };
-    
-    leaderboard.push(newEntry);
-    leaderboard.sort((a, b) => b.score - a.score);
-    leaderboard.splice(5); // Keep only top 5
-    
-    saveLeaderboard(leaderboard);
-  };
-
+  // Check if score qualifies for leaderboard
   const isTopScore = (score: number): boolean => {
-    const leaderboard = getLeaderboard();
-    return leaderboard.length < 5 || score > leaderboard[leaderboard.length - 1].score;
+    if (leaderboard.length < 10) return true; // Less than 10 entries, always qualify
+    return score > leaderboard[leaderboard.length - 1].score;
   };
 
   // Handle image upload
@@ -316,13 +347,12 @@ const WhackAMoleGame: React.FC = () => {
   }, [gameState.gameOver, gameState.score]);
 
   // Handle name submission
-  const handleNameSubmit = () => {
+  const handleNameSubmit = async () => {
     if (playerName.trim()) {
-      addToLeaderboard(playerName.trim(), gameState.score);
+      await addToLeaderboard(playerName.trim(), gameState.score);
       setShowNamePrompt(false);
       setPlayerName('');
       setShowLeaderboard(true);
-      toast.success('Score added to leaderboard!');
     }
   };
 
@@ -359,7 +389,10 @@ const WhackAMoleGame: React.FC = () => {
     };
   }, []);
 
-  const leaderboard = getLeaderboard();
+  // Load leaderboard on component mount
+  useEffect(() => {
+    loadLeaderboard();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-sky p-4 flex flex-col items-center">
@@ -482,7 +515,10 @@ const WhackAMoleGame: React.FC = () => {
           </Button>
           <Button 
             variant="outline" 
-            onClick={() => setShowLeaderboard(true)}
+            onClick={() => {
+              loadLeaderboard();
+              setShowLeaderboard(true);
+            }}
           >
             <Trophy className="w-4 h-4" />
           </Button>
@@ -575,12 +611,12 @@ const WhackAMoleGame: React.FC = () => {
               onKeyPress={(e) => e.key === 'Enter' && handleNameSubmit()}
             />
             <div className="flex gap-2">
-              <Button 
-                onClick={handleNameSubmit}
-                disabled={!playerName.trim()}
-                className="flex-1"
-              >
-                Save Score
+            <Button 
+              onClick={handleNameSubmit}
+              disabled={!playerName.trim() || isLoading}
+              className="flex-1"
+            >
+                {isLoading ? 'Saving...' : 'Save Score'}
               </Button>
               <Button 
                 variant="outline"
@@ -600,21 +636,28 @@ const WhackAMoleGame: React.FC = () => {
             <DialogTitle>🏆 Leaderboard</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            {leaderboard.length > 0 ? (
+            {isLoading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2" />
+                <p className="text-muted-foreground">Loading scores...</p>
+              </div>
+            ) : leaderboard.length > 0 ? (
               leaderboard.map((entry, index) => (
                 <div 
-                  key={index}
+                  key={entry.id}
                   className="flex justify-between items-center p-3 rounded-lg bg-muted"
                 >
                   <div className="flex items-center gap-3">
                     <span className="text-lg font-bold text-accent">
                       #{index + 1}
                     </span>
-                    <span className="font-semibold">{entry.name}</span>
+                    <span className="font-semibold">{entry.player_name}</span>
                   </div>
                   <div className="text-right">
                     <div className="font-bold text-primary">{entry.score}</div>
-                    <div className="text-xs text-muted-foreground">{entry.date}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {new Date(entry.created_at).toLocaleDateString()}
+                    </div>
                   </div>
                 </div>
               ))
