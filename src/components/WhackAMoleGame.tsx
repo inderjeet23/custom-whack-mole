@@ -115,32 +115,34 @@ const WhackAMoleGame: React.FC = () => {
 
   // Spawn a mole at random position
   const spawnMole = useCallback(() => {
-    if (!gameState.isPlaying) return;
+    setGameState(prev => {
+      if (!prev.isPlaying) return prev;
 
-    const availableHoles = gameState.moles
-      .map((mole, index) => !mole ? index : -1)
-      .filter(index => index !== -1);
+      const availableHoles = prev.moles
+        .map((mole, index) => !mole ? index : -1)
+        .filter(index => index !== -1);
 
-    if (availableHoles.length === 0) return;
+      if (availableHoles.length === 0) return prev;
 
-    const randomHole = availableHoles[Math.floor(Math.random() * availableHoles.length)];
-    const popDuration = Math.random() * 1000 + 1000; // 1-2 seconds
+      const randomHole = availableHoles[Math.floor(Math.random() * availableHoles.length)];
+      const popDuration = Math.random() * 1000 + 1000; // 1-2 seconds
 
-    setGameState(prev => ({
-      ...prev,
-      moles: prev.moles.map((mole, index) => index === randomHole ? true : mole)
-    }));
+      // Hide mole after pop duration
+      const timer = setTimeout(() => {
+        setGameState(current => ({
+          ...current,
+          moles: current.moles.map((mole, index) => index === randomHole ? false : mole)
+        }));
+      }, popDuration);
 
-    // Hide mole after pop duration
-    const timer = setTimeout(() => {
-      setGameState(prev => ({
+      moleTimersRef.current[randomHole] = timer;
+
+      return {
         ...prev,
-        moles: prev.moles.map((mole, index) => index === randomHole ? false : mole)
-      }));
-    }, popDuration);
-
-    moleTimersRef.current[randomHole] = timer;
-  }, [gameState.isPlaying, gameState.moles]);
+        moles: prev.moles.map((mole, index) => index === randomHole ? true : mole)
+      };
+    });
+  }, []);
 
   // Hit a mole
   const hitMole = (position: number) => {
