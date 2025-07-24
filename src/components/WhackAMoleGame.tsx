@@ -36,6 +36,12 @@ interface ScoreAnimation {
   points: number;
 }
 
+interface ParticleEffect {
+  id: number;
+  position: number;
+  type: 'star' | 'spark';
+}
+
 const WhackAMoleGame: React.FC = () => {
   // Generate initial random hole positions within safe boundaries
   const generateHolePositions = () => {
@@ -82,9 +88,10 @@ const WhackAMoleGame: React.FC = () => {
   const [showNamePrompt, setShowNamePrompt] = useState(false);
   const [playerName, setPlayerName] = useState('');
   const [hitEffects, setHitEffects] = useState<HitEffect[]>([]);
+  const [scoreAnimations, setScoreAnimations] = useState<ScoreAnimation[]>([]);
+  const [particles, setParticles] = useState<ParticleEffect[]>([]);
   const [leaderboard, setLeaderboard] = useState<ScoreEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [scoreAnimations, setScoreAnimations] = useState<ScoreAnimation[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const gameTimerRef = useRef<NodeJS.Timeout>();
@@ -264,6 +271,18 @@ const WhackAMoleGame: React.FC = () => {
       setHitEffects(prev => prev.filter(effect => effect.id !== effectId));
     }, 400);
 
+    // Add particle effects
+    const particleId1 = effectIdRef.current++;
+    const particleId2 = effectIdRef.current++;
+    setParticles(prev => [
+      ...prev, 
+      { id: particleId1, position, type: 'star' },
+      { id: particleId2, position, type: 'spark' }
+    ]);
+    setTimeout(() => {
+      setParticles(prev => prev.filter(p => p.id !== particleId1 && p.id !== particleId2));
+    }, 600);
+
     // Add score animation to scoreboard
     const animationId = effectIdRef.current++;
     setScoreAnimations(prev => [...prev, { id: animationId, points: 10 }]);
@@ -286,6 +305,7 @@ const WhackAMoleGame: React.FC = () => {
 
     setHitEffects([]);
     setScoreAnimations([]);
+    setParticles([]);
 
     // Clear any existing timers
     if (gameTimerRef.current) clearInterval(gameTimerRef.current);
@@ -395,76 +415,84 @@ const WhackAMoleGame: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-sky p-4 flex flex-col items-center">
-      <div className="w-full max-w-md mb-6">
-        {/* Header */}
-        <Card className="mb-4 shadow-card-game animate-bounce-in">
-          <CardContent className="p-4 text-center">
-            <h1 className="text-3xl font-bold text-primary mb-2">🔨 Whack-A-Mole!</h1>
-            <p className="text-muted-foreground">Hit the moles before they disappear!</p>
-          </CardContent>
-        </Card>
+    <div className="min-h-screen bg-gradient-sky flex flex-col">
+      {/* Game UI - Hidden during gameplay */}
+      {!gameState.isPlaying && (
+        <div className="p-4 flex flex-col items-center">
+          <div className="w-full max-w-md">
+            {/* Header */}
+            <Card className="mb-4 shadow-card-game animate-bounce-in border-primary/20">
+              <CardContent className="p-4 text-center">
+                <h1 className="text-3xl font-bold text-primary mb-2">🔨 Whack-A-Mole!</h1>
+                <p className="text-muted-foreground">Hit the moles before they disappear!</p>
+              </CardContent>
+            </Card>
 
-        {/* Custom Image Upload */}
-        <Card className="mb-4 shadow-card-game">
-          <CardContent className="p-4">
-            <Label className="text-sm font-semibold text-foreground mb-2 block">
-              Custom Mole Image (Optional)
-            </Label>
-            
-            {previewImage ? (
-              <div className="text-center">
-                <img 
-                  src={previewImage} 
-                  alt="Custom mole preview" 
-                  className="w-16 h-16 object-cover rounded-lg mx-auto mb-2 border-2 border-primary"
-                />
-                <div className="flex gap-2 justify-center">
+            {/* Custom Image Upload */}
+            <Card className="mb-4 shadow-card-game border-secondary/20">
+              <CardContent className="p-4">
+                <Label className="text-sm font-semibold text-foreground mb-2 block">
+                  Custom Mole Image (Optional)
+                </Label>
+                
+                {previewImage ? (
+                  <div className="text-center">
+                    <img 
+                      src={previewImage} 
+                      alt="Custom mole preview" 
+                      className="w-16 h-16 object-cover rounded-lg mx-auto mb-2 border-2 border-primary shadow-mole"
+                    />
+                    <div className="flex gap-2 justify-center">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => fileInputRef.current?.click()}
+                        className="border-primary/30 hover:bg-primary/10"
+                      >
+                        <Upload className="w-4 h-4 mr-1" />
+                        Change
+                      </Button>
+                      <Button 
+                        variant="destructive" 
+                        size="sm" 
+                        onClick={clearCustomImage}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
                   <Button 
                     variant="outline" 
-                    size="sm" 
+                    className="w-full border-primary/30 hover:bg-primary/10"
                     onClick={() => fileInputRef.current?.click()}
                   >
-                    <Upload className="w-4 h-4 mr-1" />
-                    Change
+                    <Upload className="w-4 h-4 mr-2" />
+                    Upload Custom Image
                   </Button>
-                  <Button 
-                    variant="destructive" 
-                    size="sm" 
-                    onClick={clearCustomImage}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <Button 
-                variant="outline" 
-                className="w-full"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                Upload Custom Image
-              </Button>
-            )}
-            
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleImageUpload}
-              className="hidden"
-            />
-          </CardContent>
-        </Card>
+                )}
+                
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
 
-        {/* Game Stats */}
-        <Card className="mb-4 shadow-card-game">
+      {/* Game Stats - Always visible but positioned for gameplay */}
+      <div className={`${gameState.isPlaying ? 'fixed top-4 left-1/2 transform -translate-x-1/2 z-20' : 'px-4'} w-full max-w-md ${!gameState.isPlaying ? 'mx-auto' : ''}`}>
+        <Card className="mb-4 shadow-card-game border-primary/20 bg-card/95 backdrop-blur-sm">
           <CardContent className="p-4">
             <div className="flex justify-between items-center relative">
               <div className="text-center">
                 <div className="relative">
-                  <p className="text-2xl font-bold text-accent">
+                  <p className="text-2xl font-bold text-primary">
                     {gameState.score}
                   </p>
                   {/* Score animations */}
@@ -482,7 +510,7 @@ const WhackAMoleGame: React.FC = () => {
                 <p className="text-sm text-muted-foreground">Score</p>
               </div>
               <div className="text-center">
-                <p className="text-2xl font-bold text-primary">
+                <p className="text-2xl font-bold text-secondary">
                   {gameState.timeLeft}s
                 </p>
                 <p className="text-sm text-muted-foreground">Time Left</p>
@@ -503,91 +531,124 @@ const WhackAMoleGame: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-
-        {/* Game Controls */}
-        <div className="flex gap-2 mb-6">
-          <Button 
-            onClick={startGame} 
-            disabled={gameState.isPlaying}
-            className="flex-1 bg-gradient-grass text-white"
-          >
-            {gameState.isPlaying ? 'Playing...' : 'Start Game'}
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={() => {
-              loadLeaderboard();
-              setShowLeaderboard(true);
-            }}
-          >
-            <Trophy className="w-4 h-4" />
-          </Button>
-        </div>
       </div>
+
+      {/* Game Controls - Hidden during gameplay */}
+      {!gameState.isPlaying && (
+        <div className="px-4 flex flex-col items-center">
+          <div className="w-full max-w-md">
+            <div className="flex gap-2 mb-6">
+              <Button 
+                onClick={startGame} 
+                disabled={gameState.isPlaying}
+                className="flex-1 bg-gradient-grass text-white shadow-lg hover:shadow-xl transition-shadow"
+              >
+                {gameState.isPlaying ? 'Playing...' : 'Start Game'}
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  loadLeaderboard();
+                  setShowLeaderboard(true);
+                }}
+                className="border-primary/30 hover:bg-primary/10"
+              >
+                <Trophy className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Game Board - Full Screen with Moving Holes */}
       <div className="fixed inset-0 pointer-events-none">
-        {gameState.moles.map((hasMole, index) => (
-          <div 
-            key={index} 
-            className="absolute transition-all duration-1000 ease-in-out pointer-events-auto"
-            style={{
-              left: `${gameState.holePositions[index]?.x || 0}px`,
-              top: `${gameState.holePositions[index]?.y || 0}px`,
-              transform: gameState.difficultyPhase > 0 ? 'translate(0, 0)' : 'translate(0, 0)'
-            }}
-          >
-            {/* Hole */}
-            <div className="w-20 h-20 rounded-full bg-gradient-hole shadow-hole border-4 border-secondary relative overflow-hidden cursor-pointer transition-transform duration-200 hover:scale-105">
-              
-              {/* Mole */}
-              {hasMole && (
-                <div 
-                  className="absolute inset-0 flex items-center justify-center animate-mole-pop cursor-pointer"
-                  onClick={() => hitMole(index)}
-                >
-                  <img 
-                    src={customImage || moleImage}
-                    alt="Mole"
-                    className="w-16 h-16 object-cover rounded-full shadow-mole hover:animate-wiggle"
-                  />
-                </div>
-              )}
+        {gameState.moles.map((hasMole, index) => {
+          // Calculate safe boundaries to avoid scoreboard
+          const safeTop = gameState.isPlaying ? 120 : 0; // Leave space for fixed scoreboard
+          const safeBottom = 60; // Leave space for bottom
+          const safeLeft = 20;
+          const safeRight = 20;
+          
+          const position = gameState.holePositions[index];
+          const adjustedY = gameState.isPlaying && position 
+            ? Math.max(safeTop, Math.min(position.y, window.innerHeight - safeBottom - 80))
+            : position?.y || 0;
+          
+          return (
+            <div 
+              key={index} 
+              className="absolute transition-all duration-1000 ease-in-out pointer-events-auto"
+              style={{
+                left: `${position?.x || 0}px`,
+                top: `${adjustedY}px`,
+                transform: gameState.difficultyPhase > 0 ? 'translate(0, 0)' : 'translate(0, 0)'
+              }}
+            >
+              {/* Enhanced Hole with realistic depth */}
+              <div className="w-20 h-20 rounded-full bg-gradient-hole shadow-hole border-4 border-secondary/20 relative overflow-hidden cursor-pointer transition-all duration-200 hover:shadow-hole animate-hole-depth">
+                
+                {/* Mole with anticipation animation */}
+                {hasMole && (
+                  <div 
+                    className="absolute inset-0 flex items-center justify-center animate-mole-pop cursor-pointer"
+                    onClick={() => hitMole(index)}
+                  >
+                    <img 
+                      src={customImage || moleImage}
+                      alt="Mole"
+                      className="w-16 h-16 object-cover rounded-full shadow-mole hover:animate-wiggle transition-all duration-200"
+                    />
+                  </div>
+                )}
 
-              {/* Hit Effect */}
-              {hitEffects.some(effect => effect.position === index) && (
-                <div className="absolute inset-0 pointer-events-none">
-                  <div className="w-full h-full rounded-full bg-accent animate-hit-effect" />
-                </div>
+                {/* Enhanced Hit Effect with glow */}
+                {hitEffects.some(effect => effect.position === index) && (
+                  <div className="absolute inset-0 pointer-events-none">
+                    <div className="w-full h-full rounded-full bg-accent/80 animate-hit-effect shadow-hit-effect" />
+                  </div>
+                )}
+
+                {/* Particle Effects */}
+                {particles.filter(p => p.position === index).map(particle => (
+                  <div key={particle.id} className="absolute inset-0 pointer-events-none">
+                    {particle.type === 'star' ? (
+                      <div className="absolute top-2 left-2 text-accent animate-sparkle text-xl">⭐</div>
+                    ) : (
+                      <div className="absolute top-1 right-2 w-2 h-2 bg-accent rounded-full animate-particle-burst shadow-particle" />
+                    )}
+                  </div>
+                ))}
+              </div>
+              
+              {/* Movement Trail Effect */}
+              {gameState.difficultyPhase > 0 && (
+                <div className="absolute inset-0 rounded-full bg-primary/20 animate-pulse -z-10 shadow-lg" />
               )}
             </div>
-            
-            {/* Movement Trail Effect */}
-            {gameState.difficultyPhase > 0 && (
-              <div className="absolute inset-0 rounded-full bg-primary/20 animate-pulse -z-10" />
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Game Over Message */}
       {gameState.gameOver && (
-        <Card className="mt-6 shadow-card-game animate-bounce-in">
-          <CardContent className="p-6 text-center">
-            <h2 className="text-2xl font-bold text-primary mb-2">Game Over!</h2>
-            <p className="text-lg text-accent font-semibold mb-2">
-              Final Score: {gameState.score}
-            </p>
-            <p className="text-muted-foreground mb-4">
-              {gameState.score >= 100 ? 'Excellent work!' : 
-               gameState.score >= 50 ? 'Good job!' : 'Keep practicing!'}
-            </p>
-            <Button onClick={startGame} className="bg-gradient-grass text-white">
-              <RotateCcw className="w-4 h-4 mr-2" />
-              Play Again
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-30">
+          <Card className="shadow-card-game animate-bounce-in border-primary/20 bg-card/95 backdrop-blur-sm">
+            <CardContent className="p-6 text-center">
+              <h2 className="text-2xl font-bold text-primary mb-2">Game Over!</h2>
+              <p className="text-lg text-secondary font-semibold mb-2">
+                Final Score: {gameState.score}
+              </p>
+              <p className="text-muted-foreground mb-4">
+                {gameState.score >= 100 ? 'Excellent work!' : 
+                 gameState.score >= 50 ? 'Good job!' : 'Keep practicing!'}
+              </p>
+              <Button onClick={startGame} className="bg-gradient-grass text-white shadow-lg hover:shadow-xl transition-shadow">
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Play Again
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* Name Prompt Dialog */}
