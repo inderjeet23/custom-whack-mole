@@ -14,7 +14,8 @@ interface GameState {
   isPlaying: boolean;
   gameOver: boolean;
   moles: boolean[];
-  boardScale: number;
+  holePositions: { x: number; y: number }[];
+  difficultyPhase: number; // 0: static, 1: slow, 2: medium, 3: fast
 }
 
 interface ScoreEntry {
@@ -28,14 +29,49 @@ interface HitEffect {
   position: number;
 }
 
+interface ScoreAnimation {
+  id: number;
+  points: number;
+}
+
 const WhackAMoleGame: React.FC = () => {
+  // Generate initial random hole positions within safe boundaries
+  const generateHolePositions = () => {
+    const positions = [];
+    const safeMargin = 100; // pixels from edge
+    const holeSize = 80; // hole diameter
+    
+    for (let i = 0; i < 9; i++) {
+      let attempts = 0;
+      let position;
+      
+      do {
+        position = {
+          x: safeMargin + Math.random() * (window.innerWidth - 2 * safeMargin - holeSize),
+          y: safeMargin + Math.random() * (window.innerHeight - 2 * safeMargin - holeSize)
+        };
+        attempts++;
+      } while (
+        attempts < 50 &&
+        positions.some(pos => 
+          Math.abs(pos.x - position.x) < holeSize + 20 || 
+          Math.abs(pos.y - position.y) < holeSize + 20
+        )
+      );
+      
+      positions.push(position);
+    }
+    return positions;
+  };
+
   const [gameState, setGameState] = useState<GameState>({
     score: 0,
     timeLeft: 60,
     isPlaying: false,
     gameOver: false,
     moles: Array(9).fill(false),
-    boardScale: 0.7
+    holePositions: generateHolePositions(),
+    difficultyPhase: 0
   });
 
   const [customImage, setCustomImage] = useState<string | null>(null);
@@ -43,13 +79,14 @@ const WhackAMoleGame: React.FC = () => {
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showNamePrompt, setShowNamePrompt] = useState(false);
   const [playerName, setPlayerName] = useState('');
-  const [hitEffects, setHitEffects] = useState<HitEffect[]>();
-  const [scorePopups, setScorePopups] = useState<{ id: number; points: number; position: number }[]>([]);
+  const [hitEffects, setHitEffects] = useState<HitEffect[]>([]);
+  const [scoreAnimations, setScoreAnimations] = useState<ScoreAnimation[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const gameTimerRef = useRef<NodeJS.Timeout>();
   const moleTimersRef = useRef<NodeJS.Timeout[]>([]);
-  const boardScaleTimerRef = useRef<NodeJS.Timeout>();
+  const movementTimerRef = useRef<NodeJS.Timeout>();
+  const difficultyTimerRef = useRef<NodeJS.Timeout>();
   const effectIdRef = useRef(0);
 
   // Load leaderboard from localStorage
@@ -113,6 +150,35 @@ const WhackAMoleGame: React.FC = () => {
     toast.success('Using default mole image');
   };
 
+  // Move holes to new positions
+  const moveHoles = useCallback(() => {
+    setGameState(prev => {
+      if (!prev.isPlaying) return prev;
+      
+      const newPositions = generateHolePositions();
+      return {
+        ...prev,
+        holePositions: newPositions
+      };
+    });
+  }, []);
+
+  // Update difficulty phase based on time
+  const updateDifficulty = useCallback(() => {
+    setGameState(prev => {
+      if (!prev.isPlaying) return prev;
+      
+      const timeElapsed = 60 - prev.timeLeft;
+      let newPhase = 0;
+      
+      if (timeElapsed >= 45) newPhase = 3; // Fast movement
+      else if (timeElapsed >= 30) newPhase = 2; // Medium movement
+      else if (timeElapsed >= 15) newPhase = 1; // Slow movement
+      
+      return { ...prev, difficultyPhase: newPhase };
+    });
+  }, []);
+
   // Spawn a mole at random position
   const spawnMole = useCallback(() => {
     setGameState(prev => {
@@ -162,19 +228,17 @@ const WhackAMoleGame: React.FC = () => {
 
     // Add hit effect
     const effectId = effectIdRef.current++;
-    setHitEffects(prev => [...(prev || []), { id: effectId, position }]);
+    setHitEffects(prev => [...prev, { id: effectId, position }]);
     setTimeout(() => {
-      setHitEffects(prev => prev?.filter(effect => effect.id !== effectId));
+      setHitEffects(prev => prev.filter(effect => effect.id !== effectId));
     }, 400);
 
-    // Add score popup
-    const popupId = effectIdRef.current++;
-    setScorePopups(prev => [...prev, { id: popupId, points: 10, position }]);
+    // Add score animation to scoreboard
+    const animationId = effectIdRef.current++;
+    setScoreAnimations(prev => [...prev, { id: animationId, points: 10 }]);
     setTimeout(() => {
-      setScorePopups(prev => prev.filter(popup => popup.id !== popupId));
+      setScoreAnimations(prev => prev.filter(anim => anim.id !== animationId));
     }, 800);
-
-    toast.success('+10 points!', { duration: 1000 });
   };
 
   // Start the game
@@ -185,15 +249,17 @@ const WhackAMoleGame: React.FC = () => {
       isPlaying: true,
       gameOver: false,
       moles: Array(9).fill(false),
-      boardScale: 0.7
+      holePositions: generateHolePositions(),
+      difficultyPhase: 0
     });
 
     setHitEffects([]);
-    setScorePopups([]);
+    setScoreAnimations([]);
 
     // Clear any existing timers
     if (gameTimerRef.current) clearInterval(gameTimerRef.current);
-    if (boardScaleTimerRef.current) clearInterval(boardScaleTimerRef.current);
+    if (movementTimerRef.current) clearInterval(movementTimerRef.current);
+    if (difficultyTimerRef.current) clearInterval(difficultyTimerRef.current);
     moleTimersRef.current.forEach(timer => timer && clearTimeout(timer));
     moleTimersRef.current = [];
 
@@ -208,14 +274,18 @@ const WhackAMoleGame: React.FC = () => {
       });
     }, 1000);
 
-    // Board scaling timer (scales from 0.7 to 1.3 over 60 seconds)
-    boardScaleTimerRef.current = setInterval(() => {
-      setGameState(prev => {
-        const progress = (60 - prev.timeLeft) / 60; // 0 to 1
-        const scale = 0.7 + (progress * 0.6); // 0.7 to 1.3
-        return { ...prev, boardScale: Math.min(scale, 1.3) };
-      });
-    }, 100);
+    // Difficulty update timer
+    difficultyTimerRef.current = setInterval(() => {
+      updateDifficulty();
+    }, 1000);
+
+    // Hole movement timer
+    movementTimerRef.current = setInterval(() => {
+      const currentState = gameState;
+      if (currentState.difficultyPhase > 0) {
+        moveHoles();
+      }
+    }, 3000); // Base movement interval, will be adjusted by difficulty
 
     // Mole spawning timer
     const spawnInterval = setInterval(() => {
@@ -234,7 +304,8 @@ const WhackAMoleGame: React.FC = () => {
     if (gameState.gameOver && gameState.score > 0) {
       // Clear all timers
       if (gameTimerRef.current) clearInterval(gameTimerRef.current);
-      if (boardScaleTimerRef.current) clearInterval(boardScaleTimerRef.current);
+      if (movementTimerRef.current) clearInterval(movementTimerRef.current);
+      if (difficultyTimerRef.current) clearInterval(difficultyTimerRef.current);
       moleTimersRef.current.forEach(timer => timer && clearTimeout(timer));
 
       // Check if it's a high score
@@ -255,11 +326,35 @@ const WhackAMoleGame: React.FC = () => {
     }
   };
 
+  // Update movement timer when difficulty changes
+  useEffect(() => {
+    if (!gameState.isPlaying) return;
+    
+    if (movementTimerRef.current) {
+      clearInterval(movementTimerRef.current);
+    }
+
+    if (gameState.difficultyPhase > 0) {
+      let interval = 3000; // Base interval
+      
+      switch (gameState.difficultyPhase) {
+        case 1: interval = 4000; break; // Slow
+        case 2: interval = 2500; break; // Medium  
+        case 3: interval = 1500; break; // Fast
+      }
+      
+      movementTimerRef.current = setInterval(() => {
+        moveHoles();
+      }, interval);
+    }
+  }, [gameState.difficultyPhase, gameState.isPlaying, moveHoles]);
+
   // Clean up timers on unmount
   useEffect(() => {
     return () => {
       if (gameTimerRef.current) clearInterval(gameTimerRef.current);
-      if (boardScaleTimerRef.current) clearInterval(boardScaleTimerRef.current);
+      if (movementTimerRef.current) clearInterval(movementTimerRef.current);
+      if (difficultyTimerRef.current) clearInterval(difficultyTimerRef.current);
       moleTimersRef.current.forEach(timer => timer && clearTimeout(timer));
     };
   }, []);
@@ -333,11 +428,24 @@ const WhackAMoleGame: React.FC = () => {
         {/* Game Stats */}
         <Card className="mb-4 shadow-card-game">
           <CardContent className="p-4">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center relative">
               <div className="text-center">
-                <p className="text-2xl font-bold text-accent">
-                  {gameState.score}
-                </p>
+                <div className="relative">
+                  <p className="text-2xl font-bold text-accent">
+                    {gameState.score}
+                  </p>
+                  {/* Score animations */}
+                  {scoreAnimations.map(anim => (
+                    <div 
+                      key={anim.id}
+                      className="absolute -top-8 left-1/2 transform -translate-x-1/2 pointer-events-none animate-score-popup"
+                    >
+                      <span className="text-accent font-bold text-lg drop-shadow-lg">
+                        +{anim.points}
+                      </span>
+                    </div>
+                  ))}
+                </div>
                 <p className="text-sm text-muted-foreground">Score</p>
               </div>
               <div className="text-center">
@@ -347,11 +455,15 @@ const WhackAMoleGame: React.FC = () => {
                 <p className="text-sm text-muted-foreground">Time Left</p>
               </div>
               <div className="text-center">
-                <p className="text-sm text-muted-foreground mb-1">Board Size</p>
+                <p className="text-sm text-muted-foreground mb-1">
+                  {gameState.difficultyPhase === 0 ? 'Static' :
+                   gameState.difficultyPhase === 1 ? 'Slow' :
+                   gameState.difficultyPhase === 2 ? 'Medium' : 'Fast'}
+                </p>
                 <div className="w-12 h-2 bg-muted rounded-full overflow-hidden">
                   <div 
-                    className="h-full bg-gradient-gold transition-all duration-100"
-                    style={{ width: `${((gameState.boardScale - 0.7) / 0.6) * 100}%` }}
+                    className="h-full bg-gradient-gold transition-all duration-300"
+                    style={{ width: `${(gameState.difficultyPhase / 3) * 100}%` }}
                   />
                 </div>
               </div>
@@ -377,55 +489,49 @@ const WhackAMoleGame: React.FC = () => {
         </div>
       </div>
 
-      {/* Game Board */}
-      <div 
-        className="relative transition-transform duration-100 ease-linear"
-        style={{ transform: `scale(${gameState.boardScale})` }}
-      >
-        <Card className="p-4 bg-gradient-grass shadow-card-game">
-          <div className="grid grid-cols-3 gap-4 w-64 h-64">
-            {gameState.moles.map((hasMole, index) => (
-              <div key={index} className="relative">
-                {/* Hole */}
-                <div className="w-20 h-20 rounded-full bg-gradient-hole shadow-hole border-4 border-secondary relative overflow-hidden cursor-pointer transition-transform duration-200 hover:scale-105">
-                  
-                  {/* Mole */}
-                  {hasMole && (
-                    <div 
-                      className="absolute inset-0 flex items-center justify-center animate-mole-pop cursor-pointer"
-                      onClick={() => hitMole(index)}
-                    >
-                      <img 
-                        src={customImage || moleImage}
-                        alt="Mole"
-                        className="w-16 h-16 object-cover rounded-full shadow-mole hover:animate-wiggle"
-                      />
-                    </div>
-                  )}
-
-                  {/* Hit Effect */}
-                  {hitEffects?.some(effect => effect.position === index) && (
-                    <div className="absolute inset-0 pointer-events-none">
-                      <div className="w-full h-full rounded-full bg-accent animate-hit-effect" />
-                    </div>
-                  )}
-
-                  {/* Score Popup */}
-                  {scorePopups.filter(popup => popup.position === index).map(popup => (
-                    <div 
-                      key={popup.id}
-                      className="absolute -top-8 left-1/2 transform -translate-x-1/2 pointer-events-none animate-score-popup"
-                    >
-                      <span className="text-accent font-bold text-lg drop-shadow-lg">
-                        +{popup.points}
-                      </span>
-                    </div>
-                  ))}
+      {/* Game Board - Full Screen with Moving Holes */}
+      <div className="fixed inset-0 pointer-events-none">
+        {gameState.moles.map((hasMole, index) => (
+          <div 
+            key={index} 
+            className="absolute transition-all duration-1000 ease-in-out pointer-events-auto"
+            style={{
+              left: `${gameState.holePositions[index]?.x || 0}px`,
+              top: `${gameState.holePositions[index]?.y || 0}px`,
+              transform: gameState.difficultyPhase > 0 ? 'translate(0, 0)' : 'translate(0, 0)'
+            }}
+          >
+            {/* Hole */}
+            <div className="w-20 h-20 rounded-full bg-gradient-hole shadow-hole border-4 border-secondary relative overflow-hidden cursor-pointer transition-transform duration-200 hover:scale-105">
+              
+              {/* Mole */}
+              {hasMole && (
+                <div 
+                  className="absolute inset-0 flex items-center justify-center animate-mole-pop cursor-pointer"
+                  onClick={() => hitMole(index)}
+                >
+                  <img 
+                    src={customImage || moleImage}
+                    alt="Mole"
+                    className="w-16 h-16 object-cover rounded-full shadow-mole hover:animate-wiggle"
+                  />
                 </div>
-              </div>
-            ))}
+              )}
+
+              {/* Hit Effect */}
+              {hitEffects.some(effect => effect.position === index) && (
+                <div className="absolute inset-0 pointer-events-none">
+                  <div className="w-full h-full rounded-full bg-accent animate-hit-effect" />
+                </div>
+              )}
+            </div>
+            
+            {/* Movement Trail Effect */}
+            {gameState.difficultyPhase > 0 && (
+              <div className="absolute inset-0 rounded-full bg-primary/20 animate-pulse -z-10" />
+            )}
           </div>
-        </Card>
+        ))}
       </div>
 
       {/* Game Over Message */}
