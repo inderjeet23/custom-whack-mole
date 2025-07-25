@@ -74,18 +74,19 @@ const WhackAMoleGame: React.FC = () => {
   const generateRandomHolePositions = (expansionRatio: number = 1.0) => {
     const positions = [];
     const isMobile = window.innerWidth < 768;
-    const safeMargin = isMobile ? 20 : 120;
+    const safeMargin = isMobile ? 30 : 120;
     const holeSize = 80;
-    const minDistance = isMobile ? holeSize + 10 : 120;
+    // Increased minimum distance to prevent any overlap
+    const minDistance = holeSize + 40; // Ensure plenty of space between holes
     
     // Calculate expanded area based on ratio (0.0 = center only, 1.0 = full screen)
-    const baseWidth = 300; // Starting area width
-    const baseHeight = 300; // Starting area height
+    const baseWidth = 400; // Starting area width (increased for better spacing)
+    const baseHeight = 400; // Starting area height (increased for better spacing)
     const maxWidth = window.innerWidth - 2 * safeMargin - holeSize;
     const maxHeight = window.innerHeight - 2 * safeMargin - holeSize;
     
-    const currentWidth = baseWidth + (maxWidth - baseWidth) * expansionRatio;
-    const currentHeight = baseHeight + (maxHeight - baseHeight) * expansionRatio;
+    const currentWidth = Math.max(baseWidth, baseWidth + (maxWidth - baseWidth) * expansionRatio);
+    const currentHeight = Math.max(baseHeight, baseHeight + (maxHeight - baseHeight) * expansionRatio);
     
     // Center the expanded area
     const centerX = window.innerWidth / 2;
@@ -93,18 +94,20 @@ const WhackAMoleGame: React.FC = () => {
     const areaLeft = Math.max(safeMargin, centerX - currentWidth / 2);
     const areaTop = Math.max(safeMargin, centerY - currentHeight / 2);
 
+    // Use a more systematic approach with better collision detection
     for (let i = 0; i < 9; i++) {
       let attempts = 0;
       let position;
       let validPosition = false;
+      const maxAttempts = 200; // Increased attempts
 
       do {
         position = {
-          x: areaLeft + Math.random() * Math.max(0, currentWidth),
-          y: areaTop + Math.random() * Math.max(0, currentHeight)
+          x: areaLeft + Math.random() * Math.max(0, currentWidth - holeSize),
+          y: areaTop + Math.random() * Math.max(0, currentHeight - holeSize)
         };
 
-        // Check distance from all existing positions
+        // Enhanced collision detection - check distance from all existing positions
         validPosition = positions.every(existingPos => {
           const distance = Math.sqrt(
             Math.pow(position.x - existingPos.x, 2) +
@@ -113,10 +116,18 @@ const WhackAMoleGame: React.FC = () => {
           return distance >= minDistance;
         });
 
-        attempts++;
-      } while (!validPosition && attempts < 100);
+        // Also ensure the position is within safe bounds
+        if (validPosition) {
+          validPosition = position.x >= areaLeft && 
+                         position.y >= areaTop &&
+                         position.x + holeSize <= areaLeft + currentWidth &&
+                         position.y + holeSize <= areaTop + currentHeight;
+        }
 
-      // If we can't find a valid position, use grid fallback
+        attempts++;
+      } while (!validPosition && attempts < maxAttempts);
+
+      // Enhanced grid fallback with guaranteed no overlaps
       if (!validPosition) {
         const gridCols = 3;
         const gridRows = 3;
@@ -124,10 +135,30 @@ const WhackAMoleGame: React.FC = () => {
         const col = gridIndex % gridCols;
         const row = Math.floor(gridIndex / gridCols);
         
+        // Calculate grid cell size ensuring minimum distance
+        const cellWidth = currentWidth / gridCols;
+        const cellHeight = currentHeight / gridRows;
+        
+        // Center the hole in its grid cell with padding
+        const padding = Math.min(cellWidth, cellHeight) * 0.1; // 10% padding
+        
         position = {
-          x: areaLeft + (col * currentWidth / gridCols) + (currentWidth / gridCols - holeSize) / 2,
-          y: areaTop + (row * currentHeight / gridRows) + (currentHeight / gridRows - holeSize) / 2
+          x: areaLeft + (col * cellWidth) + padding + ((cellWidth - 2 * padding - holeSize) / 2),
+          y: areaTop + (row * cellHeight) + padding + ((cellHeight - 2 * padding - holeSize) / 2)
         };
+        
+        // Final safety check for grid positions
+        if (positions.some(existingPos => {
+          const distance = Math.sqrt(
+            Math.pow(position.x - existingPos.x, 2) +
+            Math.pow(position.y - existingPos.y, 2)
+          );
+          return distance < minDistance;
+        })) {
+          // If even grid position conflicts, offset it
+          position.x += (i % 2) * 20;
+          position.y += Math.floor(i / 2) * 20;
+        }
       }
       
       positions.push(position);
