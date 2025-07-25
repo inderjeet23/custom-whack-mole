@@ -14,9 +14,9 @@ interface GameState {
   timeLeft: number;
   isPlaying: boolean;
   gameOver: boolean;
+  isPaused: boolean;
   moles: boolean[];
   holePositions: { x: number; y: number }[];
-  difficultyPhase: number; // 0: static, 1: slow, 2: medium, 3: fast
 }
 
 interface ScoreEntry {
@@ -43,15 +43,55 @@ interface ParticleEffect {
 }
 
 const WhackAMoleGame: React.FC = () => {
-  // Generate initial random hole positions with proper collision detection
-const generateHolePositions = () => {
+  // Generate initial uniform grid positions for the holes
+  const generateInitialGridPositions = () => {
     const positions = [];
     const isMobile = window.innerWidth < 768;
-
-    // Use smaller margins and distances for mobile screens
     const safeMargin = isMobile ? 20 : 120;
-    const holeSize = 80; // The hole is w-20 which is 5rem or 80px
+    const holeSize = 80;
+    
+    const gridCols = 3;
+    const gridRows = 3;
+    
+    const gridWidth = window.innerWidth - 2 * safeMargin;
+    const gridHeight = window.innerHeight - 2 * safeMargin;
+
+    for (let i = 0; i < 9; i++) {
+      const col = i % gridCols;
+      const row = Math.floor(i / gridCols);
+      
+      const position = {
+        x: safeMargin + (col * gridWidth / gridCols) + (gridWidth / gridCols - holeSize) / 2,
+        y: safeMargin + (row * gridHeight / gridRows) + (gridHeight / gridRows - holeSize) / 2
+      };
+      
+      positions.push(position);
+    }
+    return positions;
+  };
+
+  // Generate random hole positions with expansion ratio for smooth area growth
+  const generateRandomHolePositions = (expansionRatio: number = 1.0) => {
+    const positions = [];
+    const isMobile = window.innerWidth < 768;
+    const safeMargin = isMobile ? 20 : 120;
+    const holeSize = 80;
     const minDistance = isMobile ? holeSize + 10 : 120;
+    
+    // Calculate expanded area based on ratio (0.0 = center only, 1.0 = full screen)
+    const baseWidth = 300; // Starting area width
+    const baseHeight = 300; // Starting area height
+    const maxWidth = window.innerWidth - 2 * safeMargin - holeSize;
+    const maxHeight = window.innerHeight - 2 * safeMargin - holeSize;
+    
+    const currentWidth = baseWidth + (maxWidth - baseWidth) * expansionRatio;
+    const currentHeight = baseHeight + (maxHeight - baseHeight) * expansionRatio;
+    
+    // Center the expanded area
+    const centerX = window.innerWidth / 2;
+    const centerY = window.innerHeight / 2;
+    const areaLeft = Math.max(safeMargin, centerX - currentWidth / 2);
+    const areaTop = Math.max(safeMargin, centerY - currentHeight / 2);
 
     for (let i = 0; i < 9; i++) {
       let attempts = 0;
@@ -59,13 +99,9 @@ const generateHolePositions = () => {
       let validPosition = false;
 
       do {
-        // Adjust available width/height for margins and the size of the hole itself
-        const maxWidth = window.innerWidth - 2 * safeMargin - holeSize;
-        const maxHeight = window.innerHeight - 2 * safeMargin - holeSize;
-
         position = {
-          x: safeMargin + Math.random() * Math.max(0, maxWidth),
-          y: safeMargin + Math.random() * Math.max(0, maxHeight)
+          x: areaLeft + Math.random() * Math.max(0, currentWidth),
+          y: areaTop + Math.random() * Math.max(0, currentHeight)
         };
 
         // Check distance from all existing positions
@@ -80,7 +116,7 @@ const generateHolePositions = () => {
         attempts++;
       } while (!validPosition && attempts < 100);
 
-      // If we can't find a valid position, use a grid fallback with responsive margins
+      // If we can't find a valid position, use grid fallback
       if (!validPosition) {
         const gridCols = 3;
         const gridRows = 3;
@@ -88,12 +124,9 @@ const generateHolePositions = () => {
         const col = gridIndex % gridCols;
         const row = Math.floor(gridIndex / gridCols);
         
-        const gridWidth = window.innerWidth - 2 * safeMargin;
-        const gridHeight = window.innerHeight - 2 * safeMargin;
-
         position = {
-          x: safeMargin + (col * gridWidth / gridCols) + (gridWidth / gridCols - holeSize) / 2,
-          y: safeMargin + (row * gridHeight / gridRows) + (gridHeight / gridRows - holeSize) / 2
+          x: areaLeft + (col * currentWidth / gridCols) + (currentWidth / gridCols - holeSize) / 2,
+          y: areaTop + (row * currentHeight / gridRows) + (currentHeight / gridRows - holeSize) / 2
         };
       }
       
@@ -106,9 +139,9 @@ const generateHolePositions = () => {
     timeLeft: 60,
     isPlaying: false,
     gameOver: false,
+    isPaused: false,
     moles: Array(9).fill(false),
-    holePositions: generateHolePositions(),
-    difficultyPhase: 0
+    holePositions: generateInitialGridPositions()
   });
 
   const [customImage, setCustomImage] = useState<string | null>(null);
@@ -126,7 +159,6 @@ const generateHolePositions = () => {
   const gameTimerRef = useRef<NodeJS.Timeout>();
   const moleTimersRef = useRef<NodeJS.Timeout[]>([]);
   const movementTimerRef = useRef<NodeJS.Timeout>();
-  const difficultyTimerRef = useRef<NodeJS.Timeout>();
   const effectIdRef = useRef(0);
   const objectUrlRef = useRef<string | null>(null);
 
@@ -228,33 +260,24 @@ const generateHolePositions = () => {
     toast.success('Using default mole image');
   };
 
-  // Move holes to new positions with better collision detection
-  const moveHoles = useCallback(() => {
+  // Toggle pause function
+  const togglePause = () => {
+    setGameState(prev => ({
+      ...prev,
+      isPaused: !prev.isPaused
+    }));
+  };
+
+  // Move holes to new positions with expansion ratio
+  const moveHoles = useCallback((expansionRatio: number = 1.0) => {
     setGameState(prev => {
-      if (!prev.isPlaying) return prev;
+      if (!prev.isPlaying || prev.isPaused) return prev;
       
-      // Only generate new positions when game is active
-      const newPositions = generateHolePositions();
+      const newPositions = generateRandomHolePositions(expansionRatio);
       return {
         ...prev,
         holePositions: newPositions
       };
-    });
-  }, []);
-
-  // Update difficulty phase based on time
-  const updateDifficulty = useCallback(() => {
-    setGameState(prev => {
-      if (!prev.isPlaying) return prev;
-      
-      const timeElapsed = 60 - prev.timeLeft;
-      let newPhase = 0;
-      
-      if (timeElapsed >= 45) newPhase = 3; // Fast movement
-      else if (timeElapsed >= 30) newPhase = 2; // Medium movement
-      else if (timeElapsed >= 15) newPhase = 1; // Slow movement
-      
-      return { ...prev, difficultyPhase: newPhase };
     });
   }, []);
 
@@ -339,9 +362,9 @@ const generateHolePositions = () => {
       timeLeft: 60,
       isPlaying: true,
       gameOver: false,
+      isPaused: false,
       moles: Array(9).fill(false),
-      holePositions: generateHolePositions(),
-      difficultyPhase: 0
+      holePositions: generateInitialGridPositions()
     });
 
     setHitEffects([]);
@@ -351,39 +374,42 @@ const generateHolePositions = () => {
     // Clear any existing timers
     if (gameTimerRef.current) clearInterval(gameTimerRef.current);
     if (movementTimerRef.current) clearInterval(movementTimerRef.current);
-    if (difficultyTimerRef.current) clearInterval(difficultyTimerRef.current);
     moleTimersRef.current.forEach(timer => timer && clearTimeout(timer));
     moleTimersRef.current = [];
 
-    // Game timer
+    // Game timer with pause support and continuous expansion
     gameTimerRef.current = setInterval(() => {
       setGameState(prev => {
+        if (prev.isPaused) return prev;
+        
         const newTimeLeft = prev.timeLeft - 1;
         if (newTimeLeft <= 0) {
           return { ...prev, timeLeft: 0, isPlaying: false, gameOver: true };
         }
-        return { ...prev, timeLeft: newTimeLeft };
+        
+        // Calculate expansion ratio (0.0 to 1.0)
+        const expansionRatio = (60 - newTimeLeft) / 60;
+        
+        // Update hole positions with smooth expansion
+        const newPositions = generateRandomHolePositions(expansionRatio);
+        
+        return { 
+          ...prev, 
+          timeLeft: newTimeLeft,
+          holePositions: newPositions
+        };
       });
     }, 1000);
 
-    // Difficulty update timer
-    difficultyTimerRef.current = setInterval(() => {
-      updateDifficulty();
-    }, 1000);
-
-    // Hole movement timer
-    movementTimerRef.current = setInterval(() => {
-      const currentState = gameState;
-      if (currentState.difficultyPhase > 0) {
-        moveHoles();
-      }
-    }, 3000); // Base movement interval, will be adjusted by difficulty
-
-    // Mole spawning timer
+    // Mole spawning timer with pause support
     const spawnInterval = setInterval(() => {
-      if (Math.random() < 0.6) { // 60% chance to spawn each cycle
-        spawnMole();
-      }
+      setGameState(prev => {
+        if (prev.isPaused) return prev;
+        if (Math.random() < 0.6) { // 60% chance to spawn each cycle
+          spawnMole();
+        }
+        return prev;
+      });
     }, 800);
 
     moleTimersRef.current.push(spawnInterval);
@@ -397,7 +423,6 @@ const generateHolePositions = () => {
       // Clear all timers
       if (gameTimerRef.current) clearInterval(gameTimerRef.current);
       if (movementTimerRef.current) clearInterval(movementTimerRef.current);
-      if (difficultyTimerRef.current) clearInterval(difficultyTimerRef.current);
       moleTimersRef.current.forEach(timer => timer && clearTimeout(timer));
 
       // Check if it's a high score
@@ -417,35 +442,11 @@ const generateHolePositions = () => {
     }
   };
 
-  // Update movement timer when difficulty changes
-  useEffect(() => {
-    if (!gameState.isPlaying) return;
-    
-    if (movementTimerRef.current) {
-      clearInterval(movementTimerRef.current);
-    }
-
-    if (gameState.difficultyPhase > 0) {
-      let interval = 3000; // Base interval
-      
-      switch (gameState.difficultyPhase) {
-        case 1: interval = 4000; break; // Slow
-        case 2: interval = 2500; break; // Medium  
-        case 3: interval = 1500; break; // Fast
-      }
-      
-      movementTimerRef.current = setInterval(() => {
-        moveHoles();
-      }, interval);
-    }
-  }, [gameState.difficultyPhase, gameState.isPlaying, moveHoles]);
-
   // Clean up timers on unmount
   useEffect(() => {
     return () => {
       if (gameTimerRef.current) clearInterval(gameTimerRef.current);
       if (movementTimerRef.current) clearInterval(movementTimerRef.current);
-      if (difficultyTimerRef.current) clearInterval(difficultyTimerRef.current);
       moleTimersRef.current.forEach(timer => timer && clearTimeout(timer));
       if (objectUrlRef.current) {
         URL.revokeObjectURL(objectUrlRef.current);
@@ -560,19 +561,18 @@ const generateHolePositions = () => {
                 </p>
                 <p className="text-sm text-muted-foreground">Time Left</p>
               </div>
-              <div className="text-center">
-                <p className="text-sm text-muted-foreground mb-1">
-                  {gameState.difficultyPhase === 0 ? 'Static' :
-                   gameState.difficultyPhase === 1 ? 'Slow' :
-                   gameState.difficultyPhase === 2 ? 'Medium' : 'Fast'}
-                </p>
-                <div className="w-12 h-2 bg-muted rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-gradient-gold transition-all duration-300"
-                    style={{ width: `${(gameState.difficultyPhase / 3) * 100}%` }}
-                  />
+              {gameState.isPlaying && (
+                <div className="text-center">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={togglePause}
+                    className="border-primary/30 hover:bg-primary/10"
+                  >
+                    {gameState.isPaused ? 'Resume' : 'Pause'}
+                  </Button>
                 </div>
-              </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -671,13 +671,27 @@ const generateHolePositions = () => {
                   ))}
                 </div>
                 
-                {/* Movement Trail Effect */}
-                {gameState.difficultyPhase > 0 && (
-                  <div className="absolute inset-0 rounded-full bg-primary/20 animate-pulse -z-10 shadow-lg" />
-                )}
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Pause Overlay */}
+      {gameState.isPlaying && gameState.isPaused && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-30">
+          <Card className="shadow-card-game animate-bounce-in border-primary/20 bg-card/95 backdrop-blur-sm">
+            <CardContent className="p-6 text-center">
+              <h2 className="text-3xl font-bold text-primary mb-4">Paused</h2>
+              <p className="text-muted-foreground mb-4">Click Resume to continue playing</p>
+              <Button 
+                onClick={togglePause}
+                className="bg-gradient-grass text-white shadow-lg hover:shadow-xl transition-shadow"
+              >
+                Resume Game
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       )}
 
