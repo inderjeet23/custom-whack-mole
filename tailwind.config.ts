@@ -77,17 +77,21 @@ export default {
 				}
 			},
 			backgroundImage: {
-				"gradient-sky": "linear-gradient(135deg, hsl(43 96% 89%), hsl(43 69% 80%))", /* Sunset peach gradient */
-				"gradient-grass": "linear-gradient(135deg, hsl(4 86% 70%), hsl(22 89% 65%))", /* Coral to orange */
-				"gradient-hole": "radial-gradient(circle at 30% 30%, hsl(25 35% 45%), hsl(25 25% 25%))", /* Realistic hole depth */
-				"gradient-gold": "linear-gradient(135deg, hsl(249 69% 67%), hsl(249 69% 80%))", /* Purple gradient */
+				"gradient-sky": "linear-gradient(135deg, hsl(280 78% 15%), hsl(280 45% 25%))", /* Deep purple gradient */
+				"gradient-grass": "linear-gradient(135deg, hsl(328 100% 54%), hsl(16 100% 50%))", /* Hot pink to electric orange */
+				"gradient-hole": "radial-gradient(circle at 30% 30%, hsl(280 78% 20%), hsl(280 78% 10%))", /* Purple hole depth */
+				"gradient-gold": "linear-gradient(135deg, hsl(180 100% 50%), hsl(180 100% 70%))", /* Cyan gradient */
+				"gradient-neon": "linear-gradient(135deg, hsl(328 100% 54%), hsl(180 100% 50%))", /* Pink to cyan neon */
 			},
 			boxShadow: {
-				"card-game": "0 8px 32px -8px hsl(4 86% 70% / 0.3), 0 0 0 1px hsl(43 45% 80%)",
-				"hole": "inset 0 4px 12px hsl(25 25% 15%), 0 2px 8px hsl(25 25% 15% / 0.5)",
-				"mole": "0 4px 16px hsl(25 45% 25% / 0.8), 0 2px 8px hsl(25 45% 25% / 0.6)",
-				"hit-effect": "0 0 20px hsl(249 69% 67%), 0 0 40px hsl(249 69% 67% / 0.5)",
-				"particle": "0 0 12px hsl(249 69% 67%), 0 0 24px hsl(249 69% 67% / 0.7)",
+				"card-game": "0 8px 32px -8px hsl(328 100% 54% / 0.4), 0 0 0 1px hsl(280 45% 30%)",
+				"hole": "inset 0 4px 12px hsl(280 78% 5%), 0 2px 8px hsl(280 78% 5% / 0.8)",
+				"mole": "0 4px 16px hsl(328 100% 54% / 0.8), 0 2px 8px hsl(328 100% 54% / 0.6)",
+				"hit-effect": "0 0 20px hsl(16 100% 50%), 0 0 40px hsl(16 100% 50% / 0.5)",
+				"particle": "0 0 12px hsl(180 100% 50%), 0 0 24px hsl(180 100% 50% / 0.7)",
+				"neon-pink": "0 0 30px hsl(328 100% 54%), 0 0 60px hsl(328 100% 54% / 0.5)",
+				"neon-cyan": "0 0 30px hsl(180 100% 50%), 0 0 60px hsl(180 100% 50% / 0.5)",
+				"neon-orange": "0 0 30px hsl(16 100% 50%), 0 0 60px hsl(16 100% 50% / 0.5)",
 			},
 			transitionTimingFunction: {
 				"bounce-custom": "cubic-bezier(0.68, -0.55, 0.265, 1.55)",

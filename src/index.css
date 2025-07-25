@@ -2,117 +2,124 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Whack-a-Mole Game Design System - Cartoon & Playful Theme
+/* Whack-a-Mole Game Design System - Retro Arcade Theme
 All colors MUST be HSL. */
 
 @layer base {
   :root {
-    /* Sunset Vibes Color Scheme */
-    --background: 43 96% 89%; /* Soft peach #FFE0B2 */
-    --foreground: 0 0% 20%; /* Dark text for readability */
+    /* Retro Arcade Color Scheme */
+    --background: 280 78% 15%; /* Deep purple #2E0249 */
+    --foreground: 180 100% 85%; /* Bright cyan text for readability */
 
-    --card: 48 100% 96%; /* Warm cream #FFF8E1 */
-    --card-foreground: 0 0% 20%;
+    --card: 280 78% 20%; /* Slightly lighter purple for cards */
+    --card-foreground: 180 100% 85%;
 
-    --popover: 48 100% 96%;
-    --popover-foreground: 0 0% 20%;
+    --popover: 280 78% 20%;
+    --popover-foreground: 180 100% 85%;
 
-    --primary: 4 86% 70%; /* Deep coral #FF6B6B */
+    --primary: 328 100% 54%; /* Hot pink #FF1493 */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 22 89% 65%; /* Sunset orange #FF8E53 */
+    --secondary: 16 100% 50%; /* Electric orange #FF4500 */
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 43 69% 85%; /* Lighter peach */
-    --muted-foreground: 0 0% 40%;
+    --muted: 280 45% 25%; /* Muted purple */
+    --muted-foreground: 180 60% 70%;
 
-    --accent: 249 69% 67%; /* Rich purple #6C5CE7 */
-    --accent-foreground: 0 0% 100%;
+    --accent: 180 100% 50%; /* Bright cyan #00FFFF */
+    --accent-foreground: 280 78% 15%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 43 45% 80%;
-    --input: 43 45% 80%;
-    --ring: 4 86% 70%;
+    --border: 280 45% 30%;
+    --input: 280 45% 30%;
+    --ring: 328 100% 54%;
 
     --radius: 1rem;
 
     /* Game-specific colors */
-    --game-grass: 120 60% 50%;
-    --game-hole: 30 25% 25%;
-    --game-mole: 25 45% 35%;
-    --game-hit: 4 86% 70%;
-    --game-score: 249 69% 67%;
+    --game-grass: 180 100% 50%; /* Bright cyan grass */
+    --game-hole: 280 78% 10%; /* Very dark purple hole */
+    --game-mole: 328 100% 54%; /* Hot pink mole */
+    --game-hit: 16 100% 50%; /* Electric orange hit effect */
+    --game-score: 180 100% 50%; /* Bright cyan score */
 
-    /* Enhanced gradients */
-    --gradient-sky: linear-gradient(135deg, hsl(43 96% 89%), hsl(43 69% 80%));
-    --gradient-grass: linear-gradient(135deg, hsl(4 86% 70%), hsl(22 89% 65%));
-    --gradient-hole: radial-gradient(circle at 30% 30%, hsl(25 35% 45%), hsl(25 25% 25%));
-    --gradient-gold: linear-gradient(135deg, hsl(249 69% 67%), hsl(249 69% 80%));
+    /* Enhanced gradients with geometric patterns */
+    --gradient-sky: linear-gradient(135deg, hsl(280 78% 15%), hsl(280 45% 25%));
+    --gradient-grass: linear-gradient(135deg, hsl(328 100% 54%), hsl(16 100% 50%));
+    --gradient-hole: radial-gradient(circle at 30% 30%, hsl(280 78% 20%), hsl(280 78% 10%));
+    --gradient-gold: linear-gradient(135deg, hsl(180 100% 50%), hsl(180 100% 70%));
+    --gradient-neon: linear-gradient(135deg, hsl(328 100% 54%), hsl(180 100% 50%));
 
-    /* Enhanced shadows */
-    --shadow-hole: inset 0 4px 12px hsl(25 25% 15%), 0 2px 8px hsl(25 25% 15% / 0.5);
-    --shadow-mole: 0 4px 16px hsl(25 45% 25% / 0.8), 0 2px 8px hsl(25 45% 25% / 0.6);
-    --shadow-card: 0 8px 32px -8px hsl(4 86% 70% / 0.3), 0 0 0 1px hsl(43 45% 80%);
-    --shadow-hit-effect: 0 0 20px hsl(249 69% 67%), 0 0 40px hsl(249 69% 67% / 0.5);
-    --shadow-particle: 0 0 12px hsl(249 69% 67%), 0 0 24px hsl(249 69% 67% / 0.7);
+    /* Enhanced shadows with neon glow effects */
+    --shadow-hole: inset 0 4px 12px hsl(280 78% 5%), 0 2px 8px hsl(280 78% 5% / 0.8);
+    --shadow-mole: 0 4px 16px hsl(328 100% 54% / 0.8), 0 2px 8px hsl(328 100% 54% / 0.6);
+    --shadow-card: 0 8px 32px -8px hsl(328 100% 54% / 0.4), 0 0 0 1px hsl(280 45% 30%);
+    --shadow-hit-effect: 0 0 20px hsl(16 100% 50%), 0 0 40px hsl(16 100% 50% / 0.5);
+    --shadow-particle: 0 0 12px hsl(180 100% 50%), 0 0 24px hsl(180 100% 50% / 0.7);
+    --shadow-neon-pink: 0 0 30px hsl(328 100% 54%), 0 0 60px hsl(328 100% 54% / 0.5);
+    --shadow-neon-cyan: 0 0 30px hsl(180 100% 50%), 0 0 60px hsl(180 100% 50% / 0.5);
+    --shadow-neon-orange: 0 0 30px hsl(16 100% 50%), 0 0 60px hsl(16 100% 50% / 0.5);
 
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Geometric pattern variables */
+    --pattern-grid: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ff1493' fill-opacity='0.1'%3E%3Cpath d='M0 0h20v20H0z'/%3E%3C/g%3E%3Cg fill='%2300ffff' fill-opacity='0.05'%3E%3Cpath d='M0 10h20v1H0zM10 0v20h1V0z'/%3E%3C/g%3E%3C/svg%3E");
+
+    --sidebar-background: 280 78% 12%;
+    --sidebar-foreground: 180 100% 85%;
+    --sidebar-primary: 328 100% 54%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 280 45% 20%;
+    --sidebar-accent-foreground: 180 100% 85%;
+    --sidebar-border: 280 45% 25%;
+    --sidebar-ring: 180 100% 50%;
   }
 
   .dark {
-    /* Dark mode sunset colors */
-    --background: 25 25% 15%; /* Dark warm background */
-    --foreground: 43 69% 85%;
+    /* Dark mode retro arcade colors (even more vibrant) */
+    --background: 280 88% 8%; /* Even deeper purple */
+    --foreground: 180 100% 90%;
 
-    --card: 25 25% 20%;
-    --card-foreground: 43 69% 85%;
+    --card: 280 88% 12%;
+    --card-foreground: 180 100% 90%;
 
-    --popover: 25 25% 20%;
-    --popover-foreground: 43 69% 85%;
+    --popover: 280 88% 12%;
+    --popover-foreground: 180 100% 90%;
 
-    --primary: 4 86% 70%;
+    --primary: 328 100% 60%; /* Brighter hot pink */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 22 89% 65%;
+    --secondary: 16 100% 55%; /* Brighter electric orange */
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 25 25% 25%;
-    --muted-foreground: 43 45% 60%;
+    --muted: 280 45% 15%;
+    --muted-foreground: 180 60% 75%;
 
-    --accent: 249 69% 67%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 180 100% 55%; /* Brighter cyan */
+    --accent-foreground: 280 88% 8%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 0 84% 65%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 25 25% 30%;
-    --input: 25 25% 30%;
-    --ring: 4 86% 70%;
+    --border: 280 45% 20%;
+    --input: 280 45% 20%;
+    --ring: 328 100% 60%;
 
     /* Game colors for dark mode */
-    --game-grass: 120 40% 30%;
-    --game-hole: 25 15% 15%;
-    --game-mole: 25 35% 25%;
-    --game-hit: 4 86% 70%;
-    --game-score: 249 69% 67%;
+    --game-grass: 180 100% 55%;
+    --game-hole: 280 88% 5%;
+    --game-mole: 328 100% 60%;
+    --game-hit: 16 100% 55%;
+    --game-score: 180 100% 55%;
 
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-background: 280 88% 5%;
+    --sidebar-foreground: 180 100% 90%;
+    --sidebar-primary: 328 100% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 280 45% 15%;
+    --sidebar-accent-foreground: 180 100% 90%;
+    --sidebar-border: 280 45% 20%;
+    --sidebar-ring: 180 100% 55%;
   }
 }
 
@@ -123,5 +130,35 @@ All colors MUST be HSL. */
 
   body {
     @apply bg-background text-foreground;
+    background-image: var(--pattern-grid);
+    background-attachment: fixed;
+  }
+  
+  /* Retro arcade utility classes */
+  .neon-glow-pink {
+    box-shadow: var(--shadow-neon-pink);
+  }
+  
+  .neon-glow-cyan {
+    box-shadow: var(--shadow-neon-cyan);
+  }
+  
+  .neon-glow-orange {
+    box-shadow: var(--shadow-neon-orange);
+  }
+  
+  .text-neon-pink {
+    color: hsl(328 100% 54%);
+    text-shadow: 0 0 10px hsl(328 100% 54% / 0.8);
+  }
+  
+  .text-neon-cyan {
+    color: hsl(180 100% 50%);
+    text-shadow: 0 0 10px hsl(180 100% 50% / 0.8);
+  }
+  
+  .text-neon-orange {
+    color: hsl(16 100% 50%);
+    text-shadow: 0 0 10px hsl(16 100% 50% / 0.8);
   }
 }
